@@ -17,9 +17,8 @@ pipeline {
         stage('Deploy Backends') {
             steps {
                 sh '''
-                docker network create lab6-net || true
-
                 docker rm -f backend1 backend2 || true
+
                 docker run -d --name backend1 --network lab6-net backend-app
                 docker run -d --name backend2 --network lab6-net backend-app
                 '''
@@ -30,8 +29,9 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f nginx-lb || true
+
                 docker run -d --name nginx-lb --network lab6-net -p 80:80 \
-                  -v $(pwd)/nginx:/etc/nginx/conf.d:ro \
+                  -v /var/jenkins_home/workspace/LAB6-PIPELINE-NGINX/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro \
                   nginx
                 '''
             }
