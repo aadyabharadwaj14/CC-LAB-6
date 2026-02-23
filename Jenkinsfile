@@ -1,47 +1,44 @@
 pipeline {
     agent any
+
     stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Build Backend Image') {
             steps {
-                sh '''
-                docker rmi -f backend-app || true
-                docker build -t backend-app CC_LAB-6/backend
-                '''
+                sh 'docker build -t backend-app backend'
             }
         }
-        stage('Deploy Backend Containers') {
+
+        stage('Deploy Backends') {
             steps {
                 sh '''
-                docker network create app-network || true
                 docker rm -f backend1 backend2 || true
-                docker run -d --name backend1 --network app-network backend-app
-                docker run -d --name backend2 --network app-network backend-app
+                docker run -d --name backend1 backend-app
+                docker run -d --name backend2 backend-app
                 '''
             }
         }
+
         stage('Deploy NGINX Load Balancer') {
             steps {
                 sh '''
                 docker rm -f nginx-lb || true
-                
-                docker run -d \
-                  --name nginx-lb \
-                  --network app-network \
-                  -p 80:80 \
+                docker run -d --name nginx-lb -p 80:80 \
+                  -v $(pwd)/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro \
                   nginx
-                
-                docker cp CC_LAB-6/nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
-                docker exec nginx-lb nginx -s reload
                 '''
             }
         }
-    }
-    post {
-        success {
-            echo 'Pipeline executed successfully. NGINX load balancer is running.'
-        }
-        failure {
-            echo 'Pipeline failed. Check console logs for errors.'
+
+        stage('Post Actions') {
+            steps {
+                echo 'Pipeline executed successfully. NGINX load balancer is running.'
+            }
         }
     }
 }
